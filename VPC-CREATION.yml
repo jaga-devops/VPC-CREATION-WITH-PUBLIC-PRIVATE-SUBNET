@@ -1,0 +1,154 @@
+Resources:
+ myVPC:
+  Type: AWS::EC2::VPC
+  Properties:
+    CidrBlock: 10.0.0.0/16
+    EnableDnsSupport: 'true'
+    EnableDnsHostnames: 'true'
+    Tags:
+     - Key: stack
+       Value: testing-vpc
+     - Key: Name
+       Value: TESTING-VPC
+
+ #------------PUBLIC SUBNET----------------------
+
+ myPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: "us-east-2a"
+      Tags:
+      - Key: stack
+        Value: production
+      - Key: Name
+        Value: PublicSubnet1
+
+ myPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: "us-east-2b"
+      Tags:
+      - Key: stack
+        Value: production
+      - Key: Name
+        Value: PublicSubnet2
+
+ #------------PRIVATE SUBNET----------------------
+
+ myPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: "us-east-2a"
+      Tags:
+      - Key: stack
+        Value: production
+      - Key: Name
+        Value: PrivateSubnet1
+
+ myPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: "us-east-2b"
+      Tags:
+      - Key: stack
+        Value: production
+      - Key: Name
+        Value: PrivateSubnet2
+
+#-----------INTERNET GATEWAY------------------
+
+ InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+ GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref InternetGateway
+
+
+#--------------PUBLIC ROUTING----------------
+
+ PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+ 
+ PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+#---------ATTACH PUBLIC SUBNET1 TO PUBLIC RT--------------
+ 
+ PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+#---------ATTACH PUBLIC SUBNET2 TO PUBLIC RT--------------
+ 
+ PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+#-----------CREATE NAT GATEWAY--------------------
+ NatGateway:
+    Type: "AWS::EC2::NatGateway"
+    DependsOn: NatPublicIP
+    Properties: 
+      AllocationId: !GetAtt NatPublicIP.AllocationId
+      SubnetId: !Ref myPublicSubnet1
+
+#----------ATTACH EIP TO NATGATEWAY-----------------
+
+ NatPublicIP:
+    Type: "AWS::EC2::EIP"
+    DependsOn: myVPC
+    Properties:
+      Domain: vpc
+
+#----------CREATING PTIVATE RT-----------------------
+
+ PrivateRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref myVPC
+
+#----------ATTACH PRIVATE RT TO NAT GATEWAY------------------
+ PrivateRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+#---------ATTACH PRIVATE SUBNET1 TO PRIVATE RT--------------
+
+ PrivateSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref myPrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+#---------ATTACH PRIVATE SUBNET2 TO PRIVATE RT--------------
+
+ PrivateSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref myPrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
